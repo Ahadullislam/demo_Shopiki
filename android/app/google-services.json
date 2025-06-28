@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "905754436644",
+    "project_id": "shopiki-f9c5a",
+    "storage_bucket": "shopiki-f9c5a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:905754436644:android:a78cb9e7dc1b787d07e4b1",
+        "android_client_info": {
+          "package_name": "com.example.shopiki_admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5r-1HSQ6v_cofosmd6OIJvxprki-dzvI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
