@@ -11,7 +11,7 @@ import 'screens/auth/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // TODO: Add options for web
+  await Firebase.initializeApp(); // Add options for web if needed
   runApp(const ShopikiAdminApp());
 }
 

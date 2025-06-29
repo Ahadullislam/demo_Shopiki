@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/category.dart';
+import '../../models/product.dart';
+import 'package:uuid/uuid.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:file_picker/file_picker.dart';
 
 class ManageProductsScreen extends StatelessWidget {
   const ManageProductsScreen({super.key});
@@ -58,7 +66,7 @@ class ManageProductsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final features = [
       {'icon': Icons.add_box, 'label': 'Add Product'},
-      {'icon': Icons.delete, 'label': 'Remove Product'},
+      {'icon': Icons.edit, 'label': 'Adjustment or Edit Product'},
       {'icon': Icons.list_alt, 'label': 'View Products'},
       {'icon': Icons.search, 'label': 'Search Products'},
       {'icon': Icons.filter_list, 'label': 'Filter Products'},
@@ -104,7 +112,8 @@ class ManageProductsScreen extends StatelessWidget {
 
 class _AddProductForm extends StatefulWidget {
   final Category category;
-  const _AddProductForm({required this.category});
+  final Product? product;
+  const _AddProductForm({required this.category, this.product});
 
   @override
   State<_AddProductForm> createState() => _AddProductFormState();
@@ -112,11 +121,109 @@ class _AddProductForm extends StatefulWidget {
 
 class _AddProductFormState extends State<_AddProductForm> {
   final _formKey = GlobalKey<FormState>();
-  String name = '';
-  String imageUrl = '';
-  String price = '';
-  String stock = '';
-  String description = '';
+  late String name;
+  late String imageUrl;
+  late String price;
+  late String stock;
+  late String description;
+  bool isLoading = false;
+  String? errorMessage;
+  XFile? pickedImage;
+  PlatformFile? pickedFile;
+  String? uploadedImageUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    name = widget.product?.name ?? '';
+    imageUrl = widget.product?.imageURL ?? '';
+    price = widget.product?.price.toString() ?? '';
+    stock = widget.product?.stock.toString() ?? '';
+    description = widget.product?.description ?? '';
+    uploadedImageUrl = imageUrl.isNotEmpty ? imageUrl : null;
+  }
+
+  Future<void> _pickImage() async {
+    if (kIsWeb) {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image);
+      if (result != null && result.files.single.bytes != null) {
+        setState(() {
+          pickedFile = result.files.single;
+          pickedImage = null;
+        });
+      }
+    } else {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked != null) {
+        setState(() {
+          pickedImage = picked;
+          pickedFile = null;
+        });
+      }
+    }
+  }
+
+  Future<String?> _uploadImage(String productId) async {
+    try {
+      Reference ref = FirebaseStorage.instance.ref().child('product_images/$productId.jpg');
+      UploadTask uploadTask;
+      if (kIsWeb && pickedFile != null && pickedFile!.bytes != null) {
+        uploadTask = ref.putData(pickedFile!.bytes!);
+      } else if (pickedImage != null) {
+        uploadTask = ref.putFile(File(pickedImage!.path));
+      } else {
+        return uploadedImageUrl ?? imageUrl;
+      }
+      final snapshot = await uploadTask;
+      return await snapshot.ref.getDownloadURL();
+    } catch (e) {
+      setState(() { errorMessage = 'Image upload failed: $e'; });
+      return null;
+    }
+  }
+
+  Future<void> _addOrEditProduct() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+    try {
+      final id = widget.product?.id ?? const Uuid().v4();
+      String? finalImageUrl = await _uploadImage(id);
+      if (finalImageUrl == null || finalImageUrl.isEmpty) {
+        setState(() { errorMessage = 'Please provide a product image.'; });
+        return;
+      }
+      final product = Product(
+        id: id,
+        name: name,
+        imageURL: finalImageUrl,
+        price: double.tryParse(price) ?? 0,
+        stock: int.tryParse(stock) ?? 0,
+        category: widget.category.name,
+        description: description,
+        visible: widget.product?.visible ?? true,
+        visibleAt: widget.product?.visibleAt,
+      );
+      await FirebaseFirestore.instance.collection('Products').doc(id).set(product.toMap());
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(widget.product == null ? 'Product added successfully!' : 'Product updated successfully!')),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Failed to save product: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,21 +234,49 @@ class _AddProductFormState extends State<_AddProductForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Add Product to ${widget.category.name}', style: Theme.of(context).textTheme.titleMedium),
+            Text('${widget.product == null ? 'Add' : 'Edit'} Product to ${widget.category.name}', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
             TextFormField(
+              initialValue: imageUrl,
+              decoration: InputDecoration(
+                labelText: 'Image URL or Upload Image',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.upload_file),
+                  onPressed: isLoading ? null : () async {
+                    await _pickImage();
+                    if ((pickedImage != null || (pickedFile != null && pickedFile!.bytes != null))) {
+                      final id = widget.product?.id ?? const Uuid().v4();
+                      String? uploadedUrl = await _uploadImage(id);
+                      if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+                        setState(() {
+                          imageUrl = uploadedUrl;
+                          uploadedImageUrl = uploadedUrl;
+                        });
+                      }
+                    }
+                  },
+                ),
+              ),
+              onChanged: (v) => setState(() { imageUrl = v; uploadedImageUrl = v; }),
+              validator: (v) => v == null || v.isEmpty ? 'Enter image URL or upload an image' : null,
+            ),
+            if ((uploadedImageUrl != null && uploadedImageUrl!.isNotEmpty))
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 8),
+                child: Center(
+                  child: Image.network(uploadedImageUrl!, width: 100, height: 100, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image)),
+                ),
+              ),
+            const SizedBox(height: 16),
+            TextFormField(
+              initialValue: name,
               decoration: const InputDecoration(labelText: 'Product Name'),
               onChanged: (v) => name = v,
               validator: (v) => v == null || v.isEmpty ? 'Enter product name' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
-              decoration: const InputDecoration(labelText: 'Image URL'),
-              onChanged: (v) => imageUrl = v,
-              validator: (v) => v == null || v.isEmpty ? 'Enter image URL' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
+              initialValue: price,
               decoration: const InputDecoration(labelText: 'Price'),
               keyboardType: TextInputType.number,
               onChanged: (v) => price = v,
@@ -149,6 +284,7 @@ class _AddProductFormState extends State<_AddProductForm> {
             ),
             const SizedBox(height: 12),
             TextFormField(
+              initialValue: stock,
               decoration: const InputDecoration(labelText: 'Stock'),
               keyboardType: TextInputType.number,
               onChanged: (v) => stock = v,
@@ -156,23 +292,28 @@ class _AddProductFormState extends State<_AddProductForm> {
             ),
             const SizedBox(height: 12),
             TextFormField(
+              initialValue: description,
               decoration: const InputDecoration(labelText: 'Description'),
               onChanged: (v) => description = v,
               validator: (v) => v == null || v.isEmpty ? 'Enter description' : null,
             ),
             const SizedBox(height: 20),
+            if (errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(errorMessage!, style: const TextStyle(color: Colors.red)),
+              ),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Product added (mock)!')),
-                    );
-                  }
-                },
-                child: const Text('Add Product'),
+                onPressed: isLoading ? null : _addOrEditProduct,
+                child: isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(widget.product == null ? 'Add Product' : 'Save Changes'),
               ),
             ),
             const SizedBox(height: 12),

@@ -1,0 +1,89 @@
+Shopiki Admin App - Features & Functions Documentation
+====================================================
+
+This document provides an overview of the main features and functions in the Shopiki Admin Flutter app, including their purpose and how they work.
+
+1. Authentication
+-----------------
+- **LoginScreen** (`lib/screens/auth/login_screen.dart`):
+  - Allows admin users to log in using email and password.
+  - After FirebaseAuth login, checks Firestore collection `Admin` for the user's UID to validate admin status.
+  - If not found in `Admin`, the user is signed out and shown an error.
+
+2. Admin Dashboard
+------------------
+- **DashboardScreen** (`lib/screens/admin/dashboard_screen.dart`):
+  - Main landing page after admin login.
+  - Displays product overview (currently placeholder for real data).
+  - Allows switching between list, small grid, and large grid views for products.
+  - Handles empty state if no products are available.
+
+3. Product Management
+---------------------
+- **ManageProductsScreen** (`lib/screens/admin/manage_products.dart`):
+  - UI for adding, removing, viewing, searching, and filtering products.
+  - Add Product flow includes category selection and product details form.
+  - Currently uses mock categories; can be connected to Firestore.
+
+4. Order Management
+-------------------
+- **ManageOrdersScreen** (`lib/screens/admin/manage_orders.dart`):
+  - Placeholder for order management features (status update, export, etc.).
+  - To be implemented with Firestore integration.
+
+5. User Management
+------------------
+- **ManageUsersScreen** (`lib/screens/admin/manage_users.dart`):
+  - Placeholder for user management and role assignment.
+  - To be implemented with Firestore integration.
+
+6. Notifications
+----------------
+- **NotificationsScreen** (`lib/screens/admin/notifications.dart`):
+  - Placeholder for push notifications and offers management.
+  - To be implemented with Firebase Cloud Messaging.
+
+7. Theming
+----------
+- **AppTheme** (`lib/themes/app_theme.dart`):
+  - Provides light and dark themes using Material 3.
+  - Theme can be toggled from the admin dashboard.
+
+8. Widgets
+----------
+- **AnimatedDashboardCard** (`lib/widgets/animated_dashboard_card.dart`):
+  - Reusable widget for animated dashboard cards (uses Lottie and flutter_animate).
+
+9. Models
+---------
+- **Product, Category, Order, AppUser** (`lib/models/`):
+  - Data models for products, categories, orders, and users.
+  - Designed for easy integration with Firestore (add fromMap/toMap as needed).
+
+10. Services
+------------
+- **FirebaseService** (`lib/services/firebase/firebase_service.dart`):
+  - Centralizes access to Firebase services (Auth, Firestore, Storage, Messaging, Functions).
+  - Extend with CRUD and business logic as needed.
+
+11. Controllers
+---------------
+- **AppControllers** (`lib/controllers/app_controllers.dart`):
+  - Placeholder for state management (Provider, Riverpod, Bloc, etc.).
+  - Add feature-specific controllers as the app grows.
+
+12. Database Helpers
+--------------------
+- **db/** (currently empty):
+  - Intended for Firestore query helpers, repositories, or local DB logic.
+  - Use for advanced data access patterns as needed.
+
+---
+
+**How it works:**
+- The app starts at `main.dart`, initializes Firebase, and launches `ShopikiAdminApp`.
+- The app uses MaterialApp with light/dark themes and an AuthGate to check login state.
+- Only users present in the Firestore `Admin` collection can access the admin dashboard.
+- All business logic and data access are separated into services, models, and (future) controllers for maintainability.
+
+For more details, see the code comments in each file. 
