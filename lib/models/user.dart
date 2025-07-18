@@ -10,5 +10,21 @@ class AppUser {
     required this.email,
     required this.role,
   });
-  // TODO: Add fromMap/toMap for Firestore
+
+  factory AppUser.fromMap(Map<String, dynamic> map, String id) {
+    return AppUser(
+      id: id,
+      name: map['name'] ?? '',
+      email: map['email'] ?? '',
+      role: map['role'] ?? 'user',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'email': email,
+      'role': role,
+    };
+  }
 }
