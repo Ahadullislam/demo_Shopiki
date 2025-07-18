@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Order {
   final String id;
   final String userId;
@@ -16,5 +18,27 @@ class Order {
     required this.date,
     required this.address,
   });
-  // TODO: Add fromMap/toMap for Firestore
+
+  factory Order.fromMap(Map<String, dynamic> map, String id) {
+    return Order(
+      id: id,
+      userId: map['userId'] ?? '',
+      items: List<dynamic>.from(map['items'] ?? []),
+      status: map['status'] ?? 'Pending',
+      total: (map['total'] ?? 0).toDouble(),
+      date: (map['date'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      address: map['address'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'userId': userId,
+      'items': items,
+      'status': status,
+      'total': total,
+      'date': Timestamp.fromDate(date),
+      'address': address,
+    };
+  }
 }

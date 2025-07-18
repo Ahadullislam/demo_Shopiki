@@ -4,5 +4,19 @@ class Category {
   final String icon;
 
   Category({required this.id, required this.name, required this.icon});
-  // TODO: Add fromMap/toMap for Firestore
+
+  factory Category.fromMap(Map<String, dynamic> map, String id) {
+    return Category(
+      id: id,
+      name: map['name'] ?? '',
+      icon: map['icon'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'icon': icon,
+    };
+  }
 }
